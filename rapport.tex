@@ -1,0 +1,260 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{makecell}
+\usepackage{pdflscape} % <-- for landscape tables
+\geometry{margin=2.3cm}
+
+\title{INFO-F310 --- Projet TSP : comparaison MTZ et DFJ}
+\author{Anass L'marzguioui 000537609 \and Islam Mekhiouba 000538266}
+\date{17/12/2025}
+
+\begin{document}
+	\maketitle
+	
+	\section{Introduction}
+	Le problème du voyageur de commerce (TSP) consiste à trouver un cycle hamiltonien de coût minimal visitant chaque ville exactement une fois et revenant au point de départ.
+	Nous comparons deux formulations ILP : MTZ et DFJ, ainsi qu'une version DFJ avec génération itérative de contraintes.
+	
+	\section{Formulations}
+	\subsection{Variables et contraintes communes}
+	Variables $x_{ij}\in\{0,1\}$ pour $i\neq j$.
+	Contraintes de degré :
+	\[
+	\sum_{j\neq i} x_{ij} = 1,\qquad \sum_{j\neq i} x_{ji} = 1 \qquad \forall i.
+	\]
+	Objectif :
+	\[
+	\min \sum_{i\neq j} c_{ij} x_{ij}.
+	\]
+	
+	\subsection{MTZ}
+	Variables auxiliaires $u_i$ pour $i\in\{1,\dots,n-1\}$ avec $1\le u_i\le n-1$.
+	Contraintes MTZ :
+	\[
+	u_i - u_j + (n-1)x_{ij} \le n-2 \qquad \forall i\neq j,\ i,j\in\{1,\dots,n-1\}.
+	\]
+	Si $x_{ij}=1$, alors $u_j\ge u_i+1$ : un sous-tour induit une contradiction.
+	
+	\subsection{DFJ}
+	Pour tout sous-ensemble $S\subset V$ avec $2\le |S|\le n-1$ :
+	\[
+	\sum_{i\in S}\sum_{j\in S,\ j\neq i} x_{ij} \le |S|-1.
+	\]
+	Génération itérative : résoudre sans coupes, détecter les cycles, ajouter une coupe DFJ par sous-tour, répéter.
+	
+	\section{Tâche 2 : exemple à 5 villes}
+	Deux sous-tours :
+	\[
+	0\to 1\to 0 \qquad\text{et}\qquad 2\to 3\to 4\to 2.
+	\]
+	\begin{figure}[htbp]
+		\centering
+		\begin{tikzpicture}[scale=1, every node/.style={circle,draw,minimum size=8mm}]
+			\node (0) at (0,0) {0};
+			\node (1) at (2,0) {1};
+			\node (2) at (0,-2) {2};
+			\node (3) at (2,-2) {3};
+			\node (4) at (1,-3.5) {4};
+			\draw[->,thick] (0) -- (1);
+			\draw[->,thick] (1) -- (0);
+			\draw[->,thick] (2) -- (3);
+			\draw[->,thick] (3) -- (4);
+			\draw[->,thick] (4) -- (2);
+		\end{tikzpicture}
+		\caption{Deux sous-tours sur 5 villes.}
+	\end{figure}
+	
+	\paragraph{Violation MTZ.}
+	Dans le cycle $(2,3,4)$, $x_{23}=x_{34}=x_{42}=1$ implique :
+	$u_3\ge u_2+1$, $u_4\ge u_3+1$, $u_2\ge u_4+1$ donc contradiction.
+	
+	\paragraph{Violation DFJ.}
+	Pour $S=\{2,3,4\}$, la somme des arcs internes vaut 3, mais DFJ impose $\le |S|-1=2$.
+	
+	\section{Tâche 3 : résultats expérimentaux}
+	\subsection{Méthodologie}
+	Solveur : CBC via PuLP. Temps mesuré : uniquement \texttt{prob.solve()}.
+	DFJ énumératif : uniquement pour $n\le 15$.
+	
+	\subsection{Résultats par instance}
+	
+	% ---- Wide table: put it in landscape to remove the huge Overfull \hbox warnings ----
+	\begin{landscape}
+		\scriptsize
+		\setlength{\tabcolsep}{3pt}
+		\renewcommand{\arraystretch}{2.0}
+		\setlength{\LTleft}{0pt}
+		\setlength{\LTright}{0pt}
+		
+		\begin{longtable}{@{}p{7cm}r r r r r r r r r r r r r r@{}}
+			\caption{Comparaison des formulations (entier) : objectif, temps solveur, tailles de modèles.}\\
+			\toprule
+			Instance & n &
+			\makecell{Obj\\MTZ} & \makecell{T\\MTZ} & \makecell{Vars\\MTZ} & \makecell{Constr\\MTZ} &
+			\makecell{Obj\\DFJ\_enum} & \makecell{T\\DFJ\_enum} & \makecell{Vars\\DFJ\_enum} & \makecell{Constr\\DFJ\_enum} &
+			\makecell{Obj\\DFJ\_iter} & \makecell{T\\DFJ\_iter} & \makecell{Vars\\DFJ\_iter} & \makecell{Constr\\DFJ\_iter} & \makecell{Iter\\DFJ\_iter} \\
+			\midrule
+			\endfirsthead
+			
+			\toprule
+			Instance & n &
+			\makecell{Obj\\MTZ} & \makecell{T\\MTZ} & \makecell{Vars\\MTZ} & \makecell{Constr\\MTZ} &
+			\makecell{Obj\\DFJ\_enum} & \makecell{T\\DFJ\_enum} & \makecell{Vars\\DFJ\_enum} & \makecell{Constr\\DFJ\_enum} &
+			\makecell{Obj\\DFJ\_iter} & \makecell{T\\DFJ\_iter} & \makecell{Vars\\DFJ\_iter} & \makecell{Constr\\DFJ\_iter} & \makecell{Iter\\DFJ\_iter} \\
+			\midrule
+			\endhead
+			
+			\bottomrule
+			\endfoot
+			
+			10\_circle1 & 10 & 298.57 & 1.939 & 99 & 92 & 298.57 & 0.503 & 90 & 1032 & 298.57 & 0.274 & 90 & 28 & 2 \\
+			10\_euclidean1 & 10 & 207.85 & 0.263 & 99 & 92 & 207.85 & 0.222 & 90 & 1032 & 207.85 & 0.249 & 90 & 25 & 1 \\
+			10\_euclidean2 & 10 & 323.92 & 0.304 & 99 & 92 & 323.92 & 0.202 & 90 & 1032 & 323.92 & 0.276 & 90 & 28 & 2 \\
+			10\_line1 & 10 & 156.14 & 1.603 & 99 & 92 & 156.14 & 0.222 & 90 & 1032 & 156.14 & 0.413 & 90 & 33 & 4 \\
+			10\_random\_asym1 & 10 & 191.53 & 0.110 & 99 & 92 & 191.53 & 0.208 & 90 & 1032 & 191.53 & 0.085 & 90 & 20 & 0 \\
+			10\_random\_sym1 & 10 & 280.99 & 0.442 & 99 & 92 & 280.99 & 0.218 & 90 & 1032 & 280.99 & 0.266 & 90 & 28 & 2 \\
+			12\_circle1 & 12 & 265.22 & 1.324 & 143 & 134 & 265.22 & 2.450 & 132 & 4106 & 265.22 & 0.597 & 132 & 39 & 4 \\
+			12\_line1 & 12 & 174.80 & 5.279 & 143 & 134 & 174.80 & 1.201 & 132 & 4106 & 174.80 & 0.865 & 132 & 43 & 6 \\
+			14\_circle1 & 14 & 304.48 & 2.713 & 195 & 184 & 304.48 & 4.859 & 182 & 16396 & 304.48 & 0.242 & 182 & 34 & 1 \\
+			14\_line1 & 14 & 188.02 & 20.775 & 195 & 184 & 188.02 & 5.535 & 182 & 16396 & 188.02 & 0.794 & 182 & 53 & 7 \\
+			15\_euclidean1 & 15 & 306.70 & 4.105 & 224 & 212 & 306.70 & 10.487 & 210 & 32781 & 306.70 & 0.880 & 210 & 50 & 5 \\
+			15\_euclidean2 & 15 & 345.91 & 10.825 & 224 & 212 & 345.91 & 11.162 & 210 & 32781 & 345.91 & 0.405 & 210 & 45 & 3 \\
+			15\_random\_asym1 & 15 & 342.94 & 0.238 & 224 & 212 & 342.94 & 10.298 & 210 & 32781 & 342.94 & 0.219 & 210 & 32 & 1 \\
+			15\_random\_sym1 & 15 & 377.50 & 1.140 & 224 & 212 & 377.50 & 10.143 & 210 & 32781 & 377.50 & 0.191 & 210 & 37 & 1 \\
+			20\_euclidean1 & 20 & 370.13 & 0.912 & 399 & 382 &  &  &  &  & 370.13 & 0.273 & 380 & 50 & 1 \\
+			20\_euclidean2 & 20 & 396.75 & 23.903 & 399 & 382 &  &  &  &  & 396.75 & 0.343 & 380 & 56 & 2 \\
+			20\_random\_asym1 & 20 & 324.08 & 0.507 & 399 & 382 &  &  &  &  & 324.08 & 0.242 & 380 & 43 & 1 \\
+			20\_random\_sym1 & 20 & 371.10 & 4.267 & 399 & 382 &  &  &  &  & 371.10 & 1.357 & 380 & 59 & 5 \\
+			25\_euclidean1 & 25 & 410.26 & 12.907 & 624 & 602 &  &  &  &  & 410.26 & 1.696 & 600 & 72 & 4 \\
+			25\_euclidean2 & 25 & 418.56 & 44.769 & 624 & 602 &  &  &  &  & 418.56 & 0.628 & 600 & 74 & 4 \\
+		\end{longtable}
+		
+		\normalsize
+	\end{landscape}
+	
+	
+	\subsection{Synthèse (moyennes par taille $n$)}
+	\small
+	\begin{tabular}{rlllllll}
+		\toprule
+		n & Formulation & Temps moyen (s) & Temps médian (s) & Constr moy. & Vars moy. & Gap moy. & Iter moy. \\
+		\midrule
+		10 & DFJ\_enum & 0.263 & 0.220 & 1032.0 & 90.0 & 0.000 &  \\
+		10 & DFJ\_iter & 0.260 & 0.270 & 27.0 & 90.0 &  & 1.83 \\
+		10 & MTZ & 0.777 & 0.373 & 92.0 & 99.0 & 0.129 &  \\
+		12 & DFJ\_enum & 1.825 & 1.825 & 4106.0 & 132.0 & -0.000 &  \\
+		12 & DFJ\_iter & 0.731 & 0.731 & 41.0 & 132.0 &  & 5.00 \\
+		12 & MTZ & 3.301 & 3.301 & 134.0 & 143.0 & 0.347 &  \\
+		14 & DFJ\_enum & 5.197 & 5.197 & 16396.0 & 182.0 & -0.000 &  \\
+		14 & DFJ\_iter & 0.518 & 0.518 & 43.5 & 182.0 &  & 4.00 \\
+		14 & MTZ & 11.744 & 11.744 & 184.0 & 195.0 & 0.444 &  \\
+		15 & DFJ\_enum & 10.523 & 10.393 & 32781.0 & 210.0 & 0.000 &  \\
+		15 & DFJ\_iter & 0.424 & 0.312 & 41.0 & 210.0 &  & 2.50 \\
+		15 & MTZ & 4.077 & 2.623 & 212.0 & 224.0 & 0.167 &  \\
+		20 & DFJ\_iter & 0.554 & 0.308 & 52.0 & 380.0 &  & 2.25 \\
+		20 & MTZ & 7.397 & 2.590 & 382.0 & 399.0 & 0.087 &  \\
+		25 & DFJ\_iter & 1.162 & 1.162 & 73.0 & 600.0 &  & 4.00 \\
+		25 & MTZ & 28.838 & 28.838 & 602.0 & 624.0 & 0.141 &  \\
+		\bottomrule
+	\end{tabular}
+	\normalsize
+	
+	\paragraph{Analyse.}
+	DFJ\_iter est en général le plus rapide : il conserve une relaxation serrée et n'ajoute que quelques contraintes utiles.
+	MTZ est plus compact mais souvent pénalisé par une relaxation moins serrée.
+	
+	\section{Tâche 4 : relaxation continue et integrality gap}
+	\[
+	\text{gap} = \frac{z_{int}-z_{relax}}{z_{int}}.
+	\]
+	\subsection{Gaps par instance}
+	\small
+	\begin{longtable}{@{}p{4.2cm}rrp{2.0cm}rr@{}}
+		\toprule
+		Instance & n & Type & Gap(MTZ) & Gap(DFJ\_enum) \\
+		\midrule
+		\endfirsthead
+		\toprule
+		Instance & n & Type & Gap(MTZ) & Gap(DFJ\_enum) \\
+		\midrule
+		\endhead
+		\bottomrule
+		\endfoot
+		instance\_10\_circle\_1.txt & 10 & circle & 0.163 & 0.000 \\
+		instance\_10\_euclidean\_1.txt & 10 & euclidean & 0.036 & 0.000 \\
+		instance\_10\_euclidean\_2.txt & 10 & euclidean & 0.034 & 0.000 \\
+		instance\_10\_line\_1.txt & 10 & line & 0.477 & 0.000 \\
+		instance\_10\_random\_asym\_1.txt & 10 & random\_asym & 0.000 & 0.000 \\
+		instance\_10\_random\_sym\_1.txt & 10 & random\_sym & 0.066 & 0.000 \\
+		instance\_12\_circle\_1.txt & 12 & circle & 0.332 & 0.000 \\
+		instance\_12\_line\_1.txt & 12 & line & 0.362 & -0.000 \\
+		instance\_14\_circle\_1.txt & 14 & circle & 0.269 & 0.000 \\
+		instance\_14\_line\_1.txt & 14 & line & 0.619 & -0.000 \\
+		instance\_15\_euclidean\_1.txt & 15 & euclidean & 0.253 & 0.000 \\
+		instance\_15\_euclidean\_2.txt & 15 & euclidean & 0.295 & 0.000 \\
+		instance\_15\_random\_asym\_1.txt & 15 & random\_asym & 0.001 & 0.000 \\
+		instance\_15\_random\_sym\_1.txt & 15 & random\_sym & 0.118 & 0.000 \\
+		instance\_20\_euclidean\_1.txt & 20 & euclidean & 0.146 &  \\
+		instance\_20\_euclidean\_2.txt & 20 & euclidean & 0.151 &  \\
+		instance\_20\_random\_asym\_1.txt & 20 & random\_asym & 0.014 &  \\
+		instance\_20\_random\_sym\_1.txt & 20 & random\_sym & 0.039 &  \\
+		instance\_25\_euclidean\_1.txt & 25 & euclidean & 0.154 &  \\
+		instance\_25\_euclidean\_2.txt & 25 & euclidean & 0.129 &  \\
+	\end{longtable}
+	\normalsize
+	
+	\section{Figures}
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\linewidth]{figures/time_vs_n.png}
+		\caption{Temps solveur (entier) moyen en fonction de \texorpdfstring{$n$}{n}.}
+	\end{figure}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\linewidth]{figures/constr_vs_n.png}
+		\caption{Nombre moyen de contraintes en fonction de \texorpdfstring{$n$}{n}.}
+	\end{figure}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.9\linewidth]{figures/gap_vs_n.png}
+		\caption{Integrality gap moyen (MTZ vs DFJ\_enum) en fonction de \texorpdfstring{$n$}{n}.}
+	\end{figure}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.9\linewidth]{figures/iters_vs_n.png}
+		\caption{DFJ itératif : itérations moyennes en fonction de \texorpdfstring{$n$}{n}.}
+	\end{figure}
+	
+	\section{Tâche 5 : questions de réflexion}
+	\subsection{Pourquoi énumérer les tours est impraticable, mais DFJ est praticable ?}
+	Énumérer explicitement toutes les tournées implique un nombre factoriel $((n-1)!/2)$.
+	DFJ a un nombre exponentiel théorique de contraintes, mais la génération itérative n'ajoute que les contraintes violées (sous-tours rencontrés), ce qui suffit en pratique.
+	
+	\subsection{Pourquoi DFJ peut être plus rapide que MTZ malgré plus de contraintes ?}
+	DFJ a une relaxation plus serrée : le solveur explore moins de nœuds en branch-and-bound.
+	MTZ, plus compact, peut produire des relaxations plus lâches, augmentant l'exploration.
+	
+	\subsection{Bonus : 2 sous-tours}
+	Si exactement deux cycles $S$ et $\bar S$ existent, ajouter une seule contrainte DFJ sur l'un des deux suffit (l'autre devient redondante car complémentaire).
+	On peut vérifier en n'ajoutant qu'une coupe dans ce cas et en comparant temps/itérations.
+	
+	\section{Conclusion}
+	DFJ itératif offre le meilleur compromis pratique : relaxation forte et peu de contraintes ajoutées.
+	MTZ reste simple mais peut souffrir d'un gap plus élevé sur certaines instances.
+	
+\end{document}
